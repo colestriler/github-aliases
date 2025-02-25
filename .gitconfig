@@ -10,7 +10,8 @@
             git pull && \
             git checkout main && \
             git merge staging && \
-            git push origin main; \
+            git push origin main && \
+            git checkout staging; \
         else \
             echo 'Deploy cancelled'; \
         fi; \
@@ -19,6 +20,7 @@
         git add . && \
         git commit -m \"WIP: $(date '+%Y-%m-%d %H:%M:%S')\"; \
     }; f"
+	acp = "!f() { \n  git add .; \n  DIFF=$(git diff --cached); \n  if [ -z \"$DIFF\" ]; then \n    echo \"No changes to commit\"; \n    return 1; \n  fi; \n  DIFF_ESCAPED=$(echo \"$DIFF\" | sed \"s/\\\"/\\\\\\\\\\\"/g\" | sed \"s/$/\\\\\\\\n/g\" | tr -d \"\\n\"); \n  RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \\\n    -H \"Content-Type: application/json\" \\\n    -H \"Authorization: Bearer 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\" \\\n    -d \"{\\\"model\\\": \\\"gpt-4o\\\", \\\"messages\\\": [{\\\"role\\\": \\\"system\\\", \\\"content\\\": \\\"Generate a concise git commit message based on these changes. Use present tense, be specific, and keep it under 50 characters.\\\"}, {\\\"role\\\": \\\"user\\\", \\\"content\\\": \\\"$DIFF_ESCAPED\\\" }]}\"); \n  MESSAGE=$(echo $RESPONSE | jq -r \".choices[0].message.content\"); \n  if [ \"$MESSAGE\" = \"null\" ] || [ -z \"$MESSAGE\" ]; then \n    echo \"Failed to generate commit message. API response:\"; \n    echo $RESPONSE; \n    read -p \"Enter commit message manually: \" MESSAGE; \n  fi; \n  git commit -m \"$MESSAGE\" && git push; \n}; f"
 [push]
 	default = current
 [pull]

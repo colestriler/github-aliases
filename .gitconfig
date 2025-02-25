@@ -20,7 +20,21 @@
         git add . && \
         git commit -m \"WIP: $(date '+%Y-%m-%d %H:%M:%S')\"; \
     }; f"
-	acp = "!f() { \n  git add .; \n  DIFF=$(git diff --cached); \n  if [ -z \"$DIFF\" ]; then \n    echo \"No changes to commit\"; \n    return 1; \n  fi; \n  DIFF_ESCAPED=$(echo \"$DIFF\" | sed \"s/\\\"/\\\\\\\\\\\"/g\" | sed \"s/$/\\\\\\\\n/g\" | tr -d \"\\n\"); \n  RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \\\n    -H \"Content-Type: application/json\" \\\n    -H \"Authorization: Bearer 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\" \\\n    -d \"{\\\"model\\\": \\\"gpt-4o\\\", \\\"messages\\\": [{\\\"role\\\": \\\"system\\\", \\\"content\\\": \\\"Generate a concise git commit message based on these changes. Use present tense, be specific, and keep it under 50 characters.\\\"}, {\\\"role\\\": \\\"user\\\", \\\"content\\\": \\\"$DIFF_ESCAPED\\\" }]}\"); \n  MESSAGE=$(echo $RESPONSE | jq -r \".choices[0].message.content\"); \n  if [ \"$MESSAGE\" = \"null\" ] || [ -z \"$MESSAGE\" ]; then \n    echo \"Failed to generate commit message. API response:\"; \n    echo $RESPONSE; \n    read -p \"Enter commit message manually: \" MESSAGE; \n  fi; \n  git commit -m \"$MESSAGE\" && git push; \n}; f"
+	acp = "!f() { \n  git add .; \n  DIFF=$(git diff --cached); \n  if [ -z \"$DIFF\" ]; then \n    echo \"No changes to commit\"; \n    return 1; \n  fi; \n  MESSAGE=$(echo \"$DIFF\" | llm -s \"Generate a concise git commit message based on these changes. The commit message should be structured as follows:\n\n<type>[optional scope]: <description>\n\n[optional body]\n\n[optional footer(s)]\n\nWhere type is one of: feat, fix, docs, style, refactor, perf, test, build, ci, chore.\nKeep the description under 50 characters. Be specific and use present tense.\"); \n  if [ -z \"$MESSAGE\" ]; then \n    echo \"Failed to generate commit message.\"; \n    read -p \"Enter commit message manually: \" MESSAGE; \n  fi; \n  git commit -m \"$MESSAGE\" && git push; \n}; f"
+	cs = "!f() { \n  DIFF=$(git diff --cached); \n  if [ -z \"$DIFF\" ]; then \n    echo \"No changes to commit\"; \n    return 1; \n  fi; \n  SYSTEM_PROMPT=$(cat ~/code/bin/conventional-commit.md);\n  RESPONSE=$(llm --system \"$SYSTEM_PROMPT\" \"$DIFF\");\n  \n  # Clean the response - handle multiline code blocks\n  CLEANED_RESPONSE=$(echo \"$RESPONSE\" | sed -e \"/^\\`\\`\\`/d\" -e \"/^\\`\\`\\`$/d\");\n  MESSAGE=$(echo \"$CLEANED_RESPONSE\" | head -1 | tr -d \"\\r\");\n  DESCRIPTION=$(echo \"$CLEANED_RESPONSE\" | tail -n +2);\n  \n  if [ -z \"$MESSAGE\" ]; then \n    echo \"Failed to generate commit message.\"; \n    read -p \"Enter commit message manually: \" MESSAGE; \n  fi; \n  if [ -z \"$DESCRIPTION\" ]; then\n    git commit -m \"$MESSAGE\"; \n  else\n    git commit -m \"$MESSAGE\" -m \"$DESCRIPTION\";\n  fi;\n}; f"
+	cp = "!f() { \
+        DIFF=$(git diff --cached); \
+        if [ -z "$DIFF" ]; then \
+            echo "No changes staged for commit"; \
+            return 1; \
+        fi; \
+        MESSAGE=$(echo "$DIFF" | llm -s "Generate a concise git commit message based on these changes. The commit message should be structured as follows:\n\n<type>[optional scope]: <description>\n\n[optional body]\n\n[optional footer(s)]\n\nWhere type is one of: feat, fix, docs, style, refactor, perf, test, build, ci, chore.\nKeep the description under 50 characters. Be specific and use present tense."); \
+        if [ -z "$MESSAGE" ]; then \
+            echo "Failed to generate commit message."; \
+            read -p "Enter commit message manually: " MESSAGE; \
+        fi; \
+        git commit -m "$MESSAGE" && git push; \
+    }; f"
 [push]
 	default = current
 [pull]

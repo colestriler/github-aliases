@@ -2,20 +2,7 @@
 	ac = !git add -A && git commit
 	s = !git status
 	ls = "!f() { branch=$(git reflog show --pretty=format:'%gs ~ %gd' --date=relative | grep 'checkout:' | grep -oE '[^ ]+ ~ .*' | awk -F~ '!seen[$1]++' | head -n 20 | awk -F' ~ HEAD@{' '{printf(\"%s (%s)\\n\", $1, substr($2, 1, length($2)-1))}' | gum choose) && git checkout $(echo $branch | awk '{print $1}'); }; f"
-	    deploy = "!f() { \
-        echo -n 'Are you sure you want to deploy staging to main branch? (y/N): ' && \
-        read answer && \
-        if [ \"$answer\" = \"y\" ] || [ \"$answer\" = \"Y\" ]; then \
-            git checkout staging && \
-            git pull && \
-            git checkout main && \
-            git merge staging && \
-            git push origin main && \
-            git checkout staging; \
-        else \
-            echo 'Deploy cancelled'; \
-        fi; \
-    }; f"
+	deploy = "!f() { echo -n \"Are you sure you want to deploy staging to main/master branch? (y/N): \" && read answer && if [ \"$answer\" = \"y\" ] || [ \"$answer\" = \"Y\" ]; then DEFAULT_BRANCH=\"main\"; if git show-ref --verify --quiet refs/heads/master; then DEFAULT_BRANCH=\"master\"; fi; git checkout staging && git pull && git checkout $DEFAULT_BRANCH && git merge staging && git push origin $DEFAULT_BRANCH && git checkout staging; else echo \"Deploy cancelled\"; fi; }; f"
 	wip = "!f() { \
         git add . && \
         git commit -m \"WIP: $(date '+%Y-%m-%d %H:%M:%S')\"; \
@@ -35,10 +22,20 @@
         fi; \
         git commit -m "$MESSAGE" && git push; \
     }; f"
+	wc = "!f() { git worktree add ../worktrees/$1 -b $1; }; f"
+	wo = "!f() { git worktree add ../worktrees/$1 $1; }; f"
+    wr = "!f() { git worktree remove ../worktrees/$1; }; f"
 [push]
 	default = current
 [pull]
 	default = current
 [user]
-	name = Cole Striler
+	name = Cole
 	email = colestriler@gmail.com
+[http]
+	postBuffer = 524288000
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
